@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Personal CRM")
+        self.setWindowTitle("LKIT")
         self.setMinimumSize(800, 600)
         
         # Create the central widget and main layout

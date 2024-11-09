@@ -5,7 +5,7 @@ LKIT is a personal Customer Relationship Management (CRM) tool built with Python
 ## Setup
 
 1. Clone the repository
-2. Install dependencies: `pip install PyQt6`
+2. Install dependencies: `pip install -r requirements.txt`
 3. Run the application: `python main.py`
 
 ## Features
@@ -13,4 +13,6 @@ LKIT is a personal Customer Relationship Management (CRM) tool built with Python
 - Add, edit, and delete contacts
 - Add, edit, and delete notes
 - Add, edit, and delete tasks   
+
+
 
