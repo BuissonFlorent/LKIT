@@ -16,11 +16,29 @@ class StorageManager:
         """Create necessary directories if they don't exist"""
         self.persons_dir.mkdir(parents=True, exist_ok=True)
     
+    def _get_file_name(self, person: Person) -> str:
+        """Generate file name in format: LastNameFirstNameID.json"""
+        # Remove spaces and special characters from names
+        last_name = ''.join(c for c in person.last_name if c.isalnum())
+        first_name = ''.join(c for c in person.first_name if c.isalnum())
+        return f"{last_name}{first_name}{person.id}.json"
+    
+    def _get_id_from_file_name(self, file_name: str) -> int:
+        """Extract ID from file name"""
+        name_without_extension = file_name.replace('.json', '')
+        digits = ''
+        for char in reversed(name_without_extension):
+            if char.isdigit():
+                digits = char + digits
+            else:
+                break
+        return int(digits) if digits else 0
+    
     def _get_next_id(self) -> int:
         """Find the next available ID by checking existing files"""
         existing_ids = [
-            int(f.stem) for f in self.persons_dir.glob('*.json')
-            if f.stem.isdigit()
+            self._get_id_from_file_name(f.name)
+            for f in self.persons_dir.glob('*.json')
         ]
         return max(existing_ids, default=0) + 1
     
@@ -86,21 +104,24 @@ class StorageManager:
             conv.person_id = person.id
         
         data = self._person_to_dict(person, conversations)
-        file_path = self.persons_dir / f"{person.id}.json"
+        file_path = self.persons_dir / self._get_file_name(person)
         
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
     
     def load_person(self, person_id: int) -> Optional[tuple[Person, List[Conversation]]]:
         """Load person and their conversations from JSON file"""
-        file_path = self.persons_dir / f"{person_id}.json"
-        
-        if not file_path.exists():
+        try:
+            for file_path in self.persons_dir.glob('*.json'):
+                file_id = self._get_id_from_file_name(file_path.name)
+                if file_id == person_id:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        return self._dict_to_person(data)
             return None
-        
-        with open(file_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            return self._dict_to_person(data)
+        except Exception as e:
+            print(f"Error loading person {person_id}: {str(e)}")
+            return None
     
     def get_all_persons(self) -> List[Person]:
         """Load all persons (without conversations) for listing"""

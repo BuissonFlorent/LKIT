@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 from typing import Optional
 
@@ -6,5 +6,5 @@ from typing import Optional
 class Conversation:
     id: Optional[int] = None
     person_id: Optional[int] = None
-    date: date = date.today()
+    date: date = field(default_factory=date.today) # type: ignore
     notes: str = "" 
