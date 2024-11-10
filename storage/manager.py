@@ -137,3 +137,25 @@ class StorageManager:
     def is_initialized(self) -> bool:
         """Check if the storage structure is properly initialized"""
         return self.persons_dir.exists() 
+    
+    def add_conversation(self, person_id: int, conversation: Conversation) -> bool:
+        """Add a new conversation to an existing person"""
+        try:
+            result = self.load_person(person_id)
+            if result is None:
+                return False
+            
+            person, conversations = result
+            
+            # Set the conversation's IDs
+            conversation.person_id = person_id
+            conversation.id = max([c.id for c in conversations], default=0) + 1
+            
+            # Add the new conversation and save
+            conversations.append(conversation)
+            self.save_person(person, conversations)
+            return True
+            
+        except Exception as e:
+            print(f"Error adding conversation: {str(e)}")
+            return False
