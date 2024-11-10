@@ -13,6 +13,7 @@ from models import Person
 from .person_dialog import PersonDialog
 from .conversation_dialog import ConversationDialog
 from storage import StorageManager
+from .person_view import PersonView
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -47,6 +48,10 @@ class MainWindow(QMainWindow):
         
         # Connect list selection
         self.person_list.itemSelectionChanged.connect(self.on_person_selected)
+        
+        # Create and add person view to right panel
+        self.person_view = PersonView(self.storage)
+        self.right_panel.addWidget(self.person_view)
     
     def _create_menu_bar(self):
         """Create the main window's menu bar"""
@@ -107,4 +112,14 @@ class MainWindow(QMainWindow):
     
     def on_person_selected(self):
         """Handle person selection"""
-        self.new_conversation_action.setEnabled(bool(self.person_list.selectedItems()))
+        self.new_conversation_action.setEnabled(False)
+        selected_items = self.person_list.selectedItems()
+        
+        if selected_items:
+            person = selected_items[0].data(Qt.ItemDataRole.UserRole)
+            result = self.storage.load_person(person.id)
+            
+            if result:
+                loaded_person, conversations = result
+                self.person_view.display_person(loaded_person, conversations)
+                self.new_conversation_action.setEnabled(True)
