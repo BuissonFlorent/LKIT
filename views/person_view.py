@@ -13,6 +13,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from models import Person, Conversation
 from typing import List
 from datetime import date
+from .conversation_dialog import ConversationDialog
 
 class ConversationWidget(QWidget):
     notesChanged = pyqtSignal(Conversation)  # Signal to notify when notes are edited
@@ -55,6 +56,8 @@ class ConversationWidget(QWidget):
             self.save_button.setEnabled(False)
 
 class PersonView(QWidget):
+    conversationAdded = pyqtSignal()  # Signal to notify when conversation is added
+    
     def __init__(self, storage_manager, parent=None):
         super().__init__(parent)
         self.storage = storage_manager
@@ -89,7 +92,6 @@ class PersonView(QWidget):
         
         self.notes_text = QTextEdit()
         self.notes_text.setMaximumHeight(60)
-        self.notes_text.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.notes_text.textChanged.connect(lambda: self.person_save_button.setEnabled(True))
         
         notes_layout.addLayout(notes_header)
@@ -104,9 +106,19 @@ class PersonView(QWidget):
         details_group.setLayout(details_layout)
         layout.addWidget(details_group)
         
-        # Conversations section
+        # Conversations section with header
         conversations_group = QGroupBox("Conversations")
         conversations_layout = QVBoxLayout()
+        
+        # Add header with button
+        header_layout = QHBoxLayout()
+        header_layout.addStretch()
+        
+        add_conversation_button = QPushButton("Add Conversation")
+        add_conversation_button.clicked.connect(self.add_conversation)
+        header_layout.addWidget(add_conversation_button)
+        
+        conversations_layout.addLayout(header_layout)
         
         # Create a scroll area for conversations
         scroll = QScrollArea()
@@ -120,6 +132,10 @@ class PersonView(QWidget):
         conversations_layout.addWidget(scroll)
         conversations_group.setLayout(conversations_layout)
         layout.addWidget(conversations_group)
+        
+        # Store button reference
+        self.add_conversation_button = add_conversation_button
+        self.add_conversation_button.setEnabled(False)  # Disabled by default
     
     def display_person(self, person: Person, conversations: List[Conversation]):
         """Update the view with person and conversation data"""
@@ -131,7 +147,9 @@ class PersonView(QWidget):
         self.phone_label.setText(person.phone or "")
         self.birth_date_label.setText(person.birth_date.strftime("%Y-%m-%d") if person.birth_date else "")
         self.notes_text.setPlainText(person.notes or "")
-        self.person_save_button.setEnabled(False)  # Reset save button state
+        
+        # Enable add conversation button
+        self.add_conversation_button.setEnabled(True)
         
         # Clear existing conversations
         while self.conversations_layout.count():
@@ -184,3 +202,15 @@ class PersonView(QWidget):
                 # Save back to storage
                 self.storage.save_person(person, conversations)
                 self.person_save_button.setEnabled(False)
+    
+    def add_conversation(self):
+        """Add a new conversation for the current person"""
+        if not self.current_person:
+            return
+            
+        dialog = ConversationDialog(self)
+        if dialog.exec():
+            conversation = dialog.get_conversation()
+            if self.storage.add_conversation(self.current_person.id, conversation):
+                # Emit signal to notify that conversation was added
+                self.conversationAdded.emit()
