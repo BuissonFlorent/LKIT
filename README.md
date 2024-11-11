@@ -14,6 +14,19 @@ A local contact management system with conversation tracking.
 3. Run the application: `python main.py`
 
 
+## Building an Executable
+To create a standalone executable:
+
+1. Ensure you're using Python 3.11 (PyInstaller currently has issues with Python 3.12)
+2. Install PyInstaller: `pip install pyinstaller`
+3. Create the executable: `pyinstaller --name LKIT --windowed --clean --noupx main.py`
+
+4. The executable will be created in the `dist/LKIT` directory
+
+### Notes about Antivirus Software
+- Some antivirus software might flag the created executable as suspicious. This is a false positive due to the way PyInstaller packages Python applications.
+- If your antivirus flags the executable, you may need to add an exception for the LKIT.exe file.
+
 ## Running Tests
 The project uses Python's built-in unittest framework. There are several ways to run the tests:
 
