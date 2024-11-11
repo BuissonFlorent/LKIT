@@ -6,8 +6,8 @@ from datetime import date
 from models import Person, Conversation
 
 class StorageManager:
-    def __init__(self):
-        self.base_dir = Path.home() / '.lkit'
+    def __init__(self, base_dir: Path = None):
+        self.base_dir = base_dir or Path.home() / '.lkit'
         self.persons_dir = self.base_dir / 'persons'
         self.ensure_directories()
         self._next_id = self._get_next_id()
