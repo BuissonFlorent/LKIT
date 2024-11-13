@@ -9,10 +9,11 @@ from PyQt6.QtWidgets import (
     QMessageBox,
     QStyledItemDelegate,
     QStyleOptionViewItem,
-    QStyle
+    QStyle,
+    QToolButton
 )
 from PyQt6.QtCore import Qt, QRect, QSize
-from PyQt6.QtGui import QFont, QPalette, QColor
+from PyQt6.QtGui import QFont, QPalette, QColor, QIcon
 from models import Person
 from .person_dialog import PersonDialog
 from .conversation_dialog import ConversationDialog
@@ -81,46 +82,43 @@ class MainWindow(QMainWindow):
         
         # Initialize storage first
         self.storage = StorageManager()
+        self.reverse_sort = True  # Default to reverse chronological
         
         # Create the central widget and main layout
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
         main_layout = QHBoxLayout(central_widget)
         
-        # Create the left panel (will contain person list)
+        # Create left panel container
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Create toolbar for sort button
+        toolbar = QHBoxLayout()
+        self.sort_button = QToolButton()
+        self.sort_button.setText("↓")  # Down arrow for reverse chronological
+        self.sort_button.setToolTip("Currently: Most recent first")
+        self.sort_button.clicked.connect(self.toggle_sort_order)
+        toolbar.addWidget(self.sort_button)
+        toolbar.addStretch()
+        
+        # Create the person list
         self.person_list = QListWidget()
         self.person_list.setMaximumWidth(250)
         self.person_list.setItemDelegate(PersonItemDelegate(self))
-        self.person_list.setSpacing(2)  # Add some space between items
-        
-        # Optional: Set alternating row colors
+        self.person_list.setSpacing(2)
         self.person_list.setAlternatingRowColors(True)
         
-        # Style the list widget
-        self.person_list.setStyleSheet("""
-            QListWidget {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background-color: white;
-            }
-            QListWidget::item {
-                border-bottom: 1px solid #eee;
-                padding: 5px;
-            }
-            QListWidget::item:selected {
-                background-color: #0078d7;
-                color: white;
-            }
-            QListWidget::item:alternate {
-                background-color: #f8f8f8;
-            }
-        """)
+        # Add widgets to left layout
+        left_layout.addLayout(toolbar)
+        left_layout.addWidget(self.person_list)
         
         # Create the right panel (will contain stacked widgets for different views)
         self.right_panel = QStackedWidget()
         
-        # Add panels to the main layout
-        main_layout.addWidget(self.person_list)
+        # Add left panel to main layout
+        main_layout.addWidget(left_panel)
         main_layout.addWidget(self.right_panel)
         
         # Setup the menu bar
@@ -158,10 +156,36 @@ class MainWindow(QMainWindow):
         exit_action = file_menu.addAction("Exit")
         exit_action.triggered.connect(self.close)
     
+    def toggle_sort_order(self):
+        """Toggle between chronological and reverse chronological order"""
+        self.reverse_sort = not self.reverse_sort
+        if self.reverse_sort:
+            self.sort_button.setText("↓")
+            self.sort_button.setToolTip("Currently: Most recent first")
+        else:
+            self.sort_button.setText("↑")
+            self.sort_button.setToolTip("Currently: Oldest first")
+        self.load_persons()
+    
     def load_persons(self):
         """Load all persons from storage"""
         self.person_list.clear()
-        for person in self.storage.get_all_persons():
+        persons = self.storage.get_all_persons()
+        
+        # Get persons with their last conversation dates
+        persons_with_dates = []
+        for person in persons:
+            result = self.storage.load_person(person.id)
+            if result:
+                _, conversations = result
+                last_date = max([c.date for c in conversations]) if conversations else date.min
+                persons_with_dates.append((person, last_date))
+        
+        # Sort by date
+        persons_with_dates.sort(key=lambda x: x[1], reverse=self.reverse_sort)
+        
+        # Add to list
+        for person, _ in persons_with_dates:
             item = QListWidgetItem(person.full_name)
             item.setData(Qt.ItemDataRole.UserRole, person)
             self.person_list.addItem(item)
