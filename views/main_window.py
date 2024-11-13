@@ -10,7 +10,8 @@ from PyQt6.QtWidgets import (
     QStyledItemDelegate,
     QStyleOptionViewItem,
     QStyle,
-    QToolButton
+    QToolButton,
+    QButtonGroup
 )
 from PyQt6.QtCore import Qt, QRect, QSize
 from PyQt6.QtGui import QFont, QPalette, QColor, QIcon
@@ -82,7 +83,10 @@ class MainWindow(QMainWindow):
         
         # Initialize storage first
         self.storage = StorageManager()
-        self.reverse_sort = True  # Default to reverse chronological
+        
+        # Add sort type tracking
+        self.sort_by_date = True  # Default to date sorting
+        self.reverse_sort = True  # Default to reverse order
         
         # Create the central widget and main layout
         central_widget = QWidget()
@@ -94,13 +98,47 @@ class MainWindow(QMainWindow):
         left_layout = QVBoxLayout(left_panel)
         left_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Create toolbar for sort button
+        # Create toolbar for sort buttons
         toolbar = QHBoxLayout()
-        self.sort_button = QToolButton()
-        self.sort_button.setText("↓")  # Down arrow for reverse chronological
-        self.sort_button.setToolTip("Currently: Most recent first")
-        self.sort_button.clicked.connect(self.toggle_sort_order)
-        toolbar.addWidget(self.sort_button)
+        
+        # Create a group for sort type buttons
+        sort_group = QHBoxLayout()
+        
+        # Date sort button
+        self.date_sort_button = QToolButton()
+        self.date_sort_button.setText("📅")  # Calendar emoji
+        self.date_sort_button.setToolTip("Sort by date")
+        self.date_sort_button.setCheckable(True)
+        self.date_sort_button.setChecked(True)
+        self.date_sort_button.clicked.connect(lambda: self.change_sort_type('date'))
+        
+        # Name sort button
+        self.name_sort_button = QToolButton()
+        self.name_sort_button.setText("A")
+        self.name_sort_button.setToolTip("Sort by name")
+        self.name_sort_button.setCheckable(True)
+        self.name_sort_button.clicked.connect(lambda: self.change_sort_type('name'))
+        
+        # Make buttons exclusive (only one can be checked at a time)
+        sort_group_buttons = QButtonGroup(self)
+        sort_group_buttons.addButton(self.date_sort_button)
+        sort_group_buttons.addButton(self.name_sort_button)
+        
+        # Add buttons to sort group layout
+        sort_group.addWidget(self.date_sort_button)
+        sort_group.addWidget(self.name_sort_button)
+        sort_group.setSpacing(0)  # Remove spacing between toggle buttons
+        
+        # Order button (separate from sort type)
+        self.order_button = QToolButton()
+        self.order_button.setText("↓")
+        self.order_button.setToolTip("Change sort order")
+        self.order_button.clicked.connect(self.toggle_sort_order)
+        
+        # Add groups to toolbar with spacing
+        toolbar.addLayout(sort_group)
+        toolbar.addSpacing(10)  # Add space between sort type and order button
+        toolbar.addWidget(self.order_button)
         toolbar.addStretch()
         
         # Create the person list
@@ -156,15 +194,38 @@ class MainWindow(QMainWindow):
         exit_action = file_menu.addAction("Exit")
         exit_action.triggered.connect(self.close)
     
+    def change_sort_type(self, sort_type):
+        """Change the sort type between date and name"""
+        if sort_type == 'date':
+            self.sort_by_date = True
+            self.date_sort_button.setChecked(True)
+            self.name_sort_button.setChecked(False)
+            self.order_button.setText("↓" if self.reverse_sort else "↑")
+        else:  # name
+            self.sort_by_date = False
+            self.date_sort_button.setChecked(False)
+            self.name_sort_button.setChecked(True)
+            self.order_button.setText("A↓" if self.reverse_sort else "A↑")
+        
+        self.load_persons()
+    
     def toggle_sort_order(self):
-        """Toggle between chronological and reverse chronological order"""
+        """Toggle between ascending and descending order"""
         self.reverse_sort = not self.reverse_sort
-        if self.reverse_sort:
-            self.sort_button.setText("↓")
-            self.sort_button.setToolTip("Currently: Most recent first")
+        
+        if self.sort_by_date:
+            self.order_button.setText("↓" if self.reverse_sort else "↑")
+            self.order_button.setToolTip(
+                "Currently: Most recent first" if self.reverse_sort 
+                else "Currently: Oldest first"
+            )
         else:
-            self.sort_button.setText("↑")
-            self.sort_button.setToolTip("Currently: Oldest first")
+            self.order_button.setText("A↓" if self.reverse_sort else "A↑")
+            self.order_button.setToolTip(
+                "Currently: Z to A" if self.reverse_sort 
+                else "Currently: A to Z"
+            )
+        
         self.load_persons()
     
     def load_persons(self):
@@ -172,20 +233,24 @@ class MainWindow(QMainWindow):
         self.person_list.clear()
         persons = self.storage.get_all_persons()
         
-        # Get persons with their last conversation dates
-        persons_with_dates = []
-        for person in persons:
-            result = self.storage.load_person(person.id)
-            if result:
-                _, conversations = result
-                last_date = max([c.date for c in conversations]) if conversations else date.min
-                persons_with_dates.append((person, last_date))
+        if self.sort_by_date:
+            # Get persons with their last conversation dates
+            persons_with_sort_key = []
+            for person in persons:
+                result = self.storage.load_person(person.id)
+                if result:
+                    _, conversations = result
+                    last_date = max([c.date for c in conversations]) if conversations else date.min
+                    persons_with_sort_key.append((person, last_date))
+        else:
+            # Sort by name
+            persons_with_sort_key = [(person, person.first_name.lower()) for person in persons]
         
-        # Sort by date
-        persons_with_dates.sort(key=lambda x: x[1], reverse=self.reverse_sort)
+        # Sort by the appropriate key
+        persons_with_sort_key.sort(key=lambda x: x[1], reverse=self.reverse_sort)
         
         # Add to list
-        for person, _ in persons_with_dates:
+        for person, _ in persons_with_sort_key:
             item = QListWidgetItem(person.full_name)
             item.setData(Qt.ItemDataRole.UserRole, person)
             self.person_list.addItem(item)
