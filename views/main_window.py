@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QRect, QSize
 from PyQt6.QtGui import QFont, QPalette, QColor, QIcon
+from datetime import date
 from models import Person
 from .person_dialog import PersonDialog
 from .conversation_dialog import ConversationDialog
